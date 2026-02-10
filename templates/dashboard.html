@@ -1,0 +1,242 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pomoć pri parkiranju</title>
+  <style>
+    :root{ --bg:#111; }
+    body{ margin:0; background:var(--bg); color:#fff; font-family:Arial; text-align:center; }
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;}
+    .btn{color:#fff;text-decoration:none;background:#2d7dff;padding:8px 12px;border-radius:10px;font-weight:bold;}
+    .gear{cursor:pointer;font-size:20px;user-select:none;}
+    .sensor-box{display:flex;justify-content:center;gap:80px;margin-top:30px;}
+  
+    
+    .sensor{
+      width:250px;height:250px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:50px;font-weight:bold;color:#000;
+      animation: blink 1s infinite;
+      background:gray;
+    }
+
+    .sensor-column {display: flex;flex-direction: column;align-items: center;}
+    .label {margin-top: 15px;font-size: 22px;}
+    .polozaj-senzora{font-size: 25px;display:flex;text-align: center;}    /*Položaj oznake senzora*/
+
+    @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.3} }
+
+
+    .unit-box{
+      margin-top: 16px;
+      padding: 10px 18px;
+      background: #222;
+      border-radius: 10px;
+      display: inline-block;
+      font-weight: bold;
+      color: white;
+    }
+
+    /* modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);}
+    .panel{width:400px;max-width:92vw;background:#1b1b1b;border-radius:14px;padding:16px;text-align:center;}
+    label{display:block;margin-top:10px;font-size:14px;color:#ddd;}
+    input,select{width:85%;padding:10px;border-radius:10px;border:1px solid #333;background:#0f0f0f;color:#fff;text-align: center;}
+    .row{display:flex;gap:10px;}
+    .row > div{flex:1;}
+    .actions{display:flex;gap:10px;margin-top:14px;}
+    button{flex:1;padding:10px;border:0;border-radius:10px;font-weight:bold;cursor:pointer;}
+    .save{background:#2d7dff;color:#fff;}
+    .close{background:#333;color:#fff;}
+    .hint{opacity:.8;font-size:13px;margin-top:10px;}
+    .sensor-column {display: flex;flex-direction: column;align-items: center;}
+    .label {margin-top: 20px;margin-bottom:20px;font-size: 22px;}
+    .polozaj-senzora{font-size: 25px;display:flex;text-align: center;}    /*Položaj oznake senzora*/
+
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div>Pozdrav, <b>{{ username }}!</b></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="gear" id="openSettings">⚙️</div>
+      <a class="btn" href="/logout">Odjava</a>
+    </div>
+  </div>
+
+  <h1>Pomoć pri parkiranju</h1>
+
+  <div class="sensor-box">
+
+  <div class="sensor-column">
+    <div class="sensor" id="s1">--</div>
+    <div class="label">Prednji</div>
+  </div>
+
+  <div class="sensor-column">
+    <div class="sensor" id="s2">--</div> <!-- Položaj oznake senzora -->
+    <div class="label">Stražnji</div>
+  </div>
+
+</div>
+
+
+  
+
+
+  
+<!-- prikaz trenutne mjerne jedinice -->
+  <div class="unit-box" id="unitBox">Jedinica: --</div>
+
+  <div class="hint">(Boja ovisi o obrzini treperenja.)</div>
+
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal" id="modal">
+    <div class="panel">
+      <h2 style="margin:0 0 8px 0;">Postavke</h2>
+
+      <label style="margin-bottom: 10px;">Mjerna jedinica</label>
+
+      <select id="unit">
+        <option value="cm">cm</option>
+        <option value="in">inch</option>
+      </select>
+
+      <label style="margin-bottom: 10px;">Pozadina</label>
+      <input id="background" type="color" value="#111111">
+
+      <label style="margin-bottom: 10px;">Pragovi (u cm) – za boje</label>
+      <div class="row">
+        <div><input id="green" type="number" step="0.1" placeholder="GREEN >"></div>
+        <div><input id="yellow" type="number" step="0.1" placeholder="YELLOW >"></div>
+        <div><input id="red" type="number" step="0.1" placeholder="VERY NEAR >"></div>
+      </div>
+
+      <label style="margin-bottom: 10px;">Blink (ms) – 4 stadija</label>
+      <div class="row">
+        <div><input id="blink_far_ms" type="number" step="1" placeholder="Far"></div>
+        <div><input id="blink_mid_ms" type="number" step="1" placeholder="Mid"></div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div><input id="blink_near_ms" type="number" step="1" placeholder="Near"></div>
+        <div><input id="blink_very_near_ms" type="number" step="1" placeholder="Very near"></div>
+      </div>
+
+      <div class="actions">
+        <button class="close" id="closeSettings">Zatvori</button>
+        <button class="save" id="saveSettings">Spremi</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+let settings = null;
+
+function updateUnitBox(){
+  document.getElementById("unitBox").innerText = "Jedinica: " + (settings ? settings.unit : "--");
+}
+
+function cmToUnit(cm){
+  if (settings.unit === "in") return cm / 2.54;
+  return cm;
+}
+
+function stage(cm){
+  if (cm > settings.green) return "far";
+  if (cm > settings.yellow) return "mid";
+  if (cm > settings.red) return "near";
+  return "very";
+}
+
+function colorFor(stageName){
+  if(stageName === "far") return "green";
+  if(stageName === "mid") return "yellow";
+  return "red";
+}
+
+function blinkMsFor(stageName){
+  if(stageName === "far") return settings.blink_far_ms;
+  if(stageName === "mid") return settings.blink_mid_ms;
+  if(stageName === "near") return settings.blink_near_ms;
+  return settings.blink_very_near_ms;
+}
+
+function applyBackground(){
+  document.documentElement.style.setProperty("--bg", settings.background);
+}
+
+async function loadSettings(){
+  const r = await fetch("/settings");
+  settings = await r.json();
+  applyBackground();
+  updateUnitBox();
+
+  document.getElementById("unit").value = settings.unit;
+  document.getElementById("background").value = settings.background;
+  document.getElementById("green").value = settings.green;
+  document.getElementById("yellow").value = settings.yellow;
+  document.getElementById("red").value = settings.red;
+  document.getElementById("blink_far_ms").value = settings.blink_far_ms;
+  document.getElementById("blink_mid_ms").value = settings.blink_mid_ms;
+  document.getElementById("blink_near_ms").value = settings.blink_near_ms;
+  document.getElementById("blink_very_near_ms").value = settings.blink_very_near_ms;
+}
+
+async function saveSettings(){
+  settings.unit = document.getElementById("unit").value;
+  settings.background = document.getElementById("background").value;
+  settings.green = parseFloat(document.getElementById("green").value);
+  settings.yellow = parseFloat(document.getElementById("yellow").value);
+  settings.red = parseFloat(document.getElementById("red").value);
+  settings.blink_far_ms = parseInt(document.getElementById("blink_far_ms").value);
+  settings.blink_mid_ms = parseInt(document.getElementById("blink_mid_ms").value);
+  settings.blink_near_ms = parseInt(document.getElementById("blink_near_ms").value);
+  settings.blink_very_near_ms = parseInt(document.getElementById("blink_very_near_ms").value);
+
+  applyBackground();
+  updateUnitBox();
+
+  await fetch("/settings", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(settings)
+  });
+}
+
+function updateSensor(el, cm){
+  if(cm === null || cm === undefined) {
+    el.textContent = "--";
+    el.style.background = "gray";
+    el.style.animationDuration = "1000ms";
+    return;
+  }
+
+  const st = stage(cm);
+  el.style.background = colorFor(st);
+  el.style.animationDuration = blinkMsFor(st) + "ms";
+
+  const shown = cmToUnit(cm);
+  el.textContent = shown.toFixed(1);
+}
+
+const modal = document.getElementById("modal");
+document.getElementById("openSettings").onclick = () => modal.style.display = "flex";
+document.getElementById("closeSettings").onclick = () => modal.style.display = "none";
+document.getElementById("saveSettings").onclick = async () => { await saveSettings(); modal.style.display = "none"; };
+
+(async function main(){
+  await loadSettings();
+  setInterval(async ()=>{
+    const r = await fetch("/status");
+    const d = await r.json();
+    updateSensor(document.getElementById("s1"), d.SENSOR_1);
+    updateSensor(document.getElementById("s2"), d.SENSOR_2);
+  }, 500);
+})();
+</script>
+
+</body>
+</html>
