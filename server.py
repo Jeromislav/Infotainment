@@ -9,7 +9,7 @@ app.secret_key = "CHANGE_ME_TO_SOMETHING_RANDOM"
 def get_db():
     return sqlite3.connect("app.db")
 
-def init_db():
+def init_db(): #definira se baza podataka
     db = get_db()
     c = db.cursor()
 
@@ -20,7 +20,9 @@ def init_db():
         password_hash TEXT NOT NULL
     )
     """)
-
+    # izrada baze podataka users
+    # korisničko ime mora postojati, ne smije biti isto koje već postoji, 
+    # id je jednistveni označivač korisnika koji mora biti različit od svakog korisnika pojedinačno, te se povećava svakim unosom novog korisnika, zaporka se hešira te se mora unijeti
     c.execute("""
     CREATE TABLE IF NOT EXISTS settings (
         user_id INTEGER PRIMARY KEY,
@@ -36,7 +38,8 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
     """)
-
+# izrada baze podataka settings
+    
     db.commit()
     db.close()
 
@@ -46,7 +49,7 @@ init_db()
 sensor_data = {"SENSOR_1": None, "SENSOR_2": None}
 
 def require_login():
-    return "user_id" in session
+    return "user_id" in session #provjerava postoji li taj ključ unutar session objekta i vraća True ili False, bez greške
 
 def create_default_settings(user_id: int):
     db = get_db()
@@ -56,7 +59,7 @@ def create_default_settings(user_id: int):
     (user_id, unit, background, green_limit, yellow_limit, red_limit,
      blink_far_ms, blink_mid_ms, blink_near_ms, blink_very_near_ms)
     VALUES (?, 'cm', '#111111', 50, 20, 10, 1000, 600, 300, 150)
-    """, (user_id,))
+    """, (user_id,))# postojećem korisniku se postavljene vrijednosti, a novom se stavljaju zadane vrijednosti
     db.commit()
     db.close()
 
@@ -75,7 +78,7 @@ def get_user_settings(user_id: int):
         return get_user_settings(user_id)
 
     keys = ["unit","background","green","yellow","red","blink_far_ms","blink_mid_ms","blink_near_ms","blink_very_near_ms"]
-    return dict(zip(keys, row))
+    return dict(zip(keys, row)) #spaja svako ime ključa s odgovarajućom vrijednošću iz baze. praktično jer se taj rječnik može direktno poslati kao JSON web sučelju
 
 def update_user_settings(user_id: int, s: dict):
     db = get_db()
@@ -96,7 +99,7 @@ def update_user_settings(user_id: int, s: dict):
         s["unit"],
         s["background"],
         float(s["green"]),
-        float(s["yellow"]),
+        float(s["yellow"]),# prevođenjem JSON poruke, osigurava se da je ta vrijednost broj a ne string u bazi podataka tako što se pretvori u float
         float(s["red"]),
         int(s["blink_far_ms"]),
         int(s["blink_mid_ms"]),
@@ -123,7 +126,7 @@ def register():
     c = db.cursor()
     try:
         c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                  (username, generate_password_hash(password)))
+                  (username, generate_password_hash(password))) #(password, method="pbkdf2:sha256")
         user_id = c.lastrowid
         db.commit()
     except sqlite3.IntegrityError:
@@ -145,7 +148,7 @@ def login():
     password = request.form.get("password") or ""
 
     db = get_db()
-    c = db.cursor()
+    c = db.cursor() #Cursor služi za izvršavanje SQL naredbi nad bazom podataka
     c.execute("SELECT id, password_hash FROM users WHERE username=?", (username,))
     row = c.fetchone()
     db.close()
@@ -181,7 +184,7 @@ def receive_data():
     sid = data.get("sensor_id")
     dist = data.get("distance")
 
-    if sid in sensor_data:
+    if sid in sensor_data: #provjerava se koji senzor šalje podatke, sid = sensor id
         try:
             sensor_data[sid] = float(dist)
         except:
@@ -191,7 +194,7 @@ def receive_data():
 @app.route("/status")
 def status():
     if not require_login():
-        return jsonify({"error": "unauthorized"}), 401
+        return jsonify({"error": "unauthorized"}), 401 #služi za zaštitu rute /status da netko tko nije prijavljen ne može dohvaćati podatke senzora
     return jsonify(sensor_data)
 
 @app.route("/settings", methods=["GET", "POST"])
@@ -202,7 +205,8 @@ def settings():
     user_id = session["user_id"]
 
     if request.method == "POST":
-        s = request.get_json(silent=True) or {}
+        s = request.get_json(silent=True) or {}#osigurava da, ako get_json() vrati None (npr. nije poslan JSON ili je neispravan),
+        # varijabla data postane prazan rječnik umjesto None, čime se sprječava rušenje programa pri daljnjem pristupu podacima.
         # minimalna validacija
         required = ["unit","background","green","yellow","red",
                     "blink_far_ms","blink_mid_ms","blink_near_ms","blink_very_near_ms"]
