@@ -140,7 +140,7 @@ function updateUnitBox(){
 }
 
 function cmToUnit(cm){
-  if (settings.unit === "in") return cm / 2.54;
+  if (settings.unit === "in") return cm / 2.54; //pretvori cm u inče, ako su već cm izabrani, ne mijenja se niš
   return cm;
 }
 
