@@ -44,7 +44,7 @@
     input,select{width:85%;padding:10px;border-radius:10px;border:1px solid #333;background:#0f0f0f;color:#fff;text-align: center;}
     .row{display:flex;gap:10px;}
     .row > div{flex:1;}
-    .actions{display:flex;gap:10px;margin-top:14px;}
+    .actions{display:flex;gap:10px;margin-top:14px;} /*flex - elementi se automatski poslože jedan pored drugog*/
     button{flex:1;padding:10px;border:0;border-radius:10px;font-weight:bold;cursor:pointer;}
     .save{background:#2d7dff;color:#fff;}
     .close{background:#333;color:#fff;}
@@ -168,7 +168,7 @@ function applyBackground(){
   document.documentElement.style.setProperty("--bg", settings.background);
 }
 
-async function loadSettings(){
+async function loadSettings(){ /*učitava postavke sa servera i prikazuje ih na stranici*/
   const r = await fetch("/settings");
   settings = await r.json();
   applyBackground();
@@ -185,10 +185,10 @@ async function loadSettings(){
   document.getElementById("blink_very_near_ms").value = settings.blink_very_near_ms;
 }
 
-async function saveSettings(){
+async function saveSettings(){ /*uzima postavke koje je korisnik promijenio i šalje ih na server da se spreme*/
   settings.unit = document.getElementById("unit").value;
   settings.background = document.getElementById("background").value;
-  settings.green = parseFloat(document.getElementById("green").value);
+  settings.green = parseFloat(document.getElementById("green").value); /*parseFloat služi za pretvaranje tekstualnog unosa u broj, dok se za tekstualne vrijednosti poput mjerne jedinice i boje ne koristi*/
   settings.yellow = parseFloat(document.getElementById("yellow").value);
   settings.red = parseFloat(document.getElementById("red").value);
   settings.blink_far_ms = parseInt(document.getElementById("blink_far_ms").value);
